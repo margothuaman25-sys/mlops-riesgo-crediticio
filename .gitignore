@@ -30,6 +30,6 @@ Thumbs.db
 *.log
 
 # Archivos de datos
-   Base_de_datos_eda.csv
-   Base_de_datos_tipada.csv
-   Dockerfile
+Base_de_datos_eda.csv
+Base_de_datos_tipada.csv
+Dockerfile
