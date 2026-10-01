@@ -10,7 +10,6 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Datos sensibles / pesados (ajustar según el caso)
-*.pkl
 *.joblib
 models/*.bin
 
