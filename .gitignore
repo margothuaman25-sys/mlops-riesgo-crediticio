@@ -1,4 +1,4 @@
-# Entornos virtuales
+﻿# Entornos virtuales
 venv/
 env/
 .venv/
@@ -10,7 +10,6 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Datos sensibles / pesados (ajustar según el caso)
-*.pkl
 *.joblib
 models/*.bin
 
@@ -28,3 +27,8 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Archivos de datos
+Base_de_datos_eda.csv
+Base_de_datos_tipada.csv
+Dockerfile
