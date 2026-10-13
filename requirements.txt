@@ -1,16 +1,15 @@
-pandas
-numpy
-openpyxl
-python-dotenv
-db-dtypes
-jupyter
-notebook
+# Proyecto Integrador PIM5 - Despliegue de modelo de riesgo crediticio
+# Versiones probadas con Python 3.14
+
+pandas==3.0.3
+numpy==2.5.0
+scipy==1.18.1
+scikit-learn==1.9.1
+xgboost==3.4.1
+feature-engine==1.9.4
+matplotlib==3.10.8
+seaborn==0.13.2
+openpyxl==3.1.5
+
+# Para ejecutar los notebooks (Cargar_datos y comprension_eda)
 ipykernel
-seaborn
-ipywidgets
-scikit-learn
-xgboost
-pydantic
-fastapi
-uvicorn[standard]
-feature-engine

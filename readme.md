@@ -28,10 +28,12 @@ mlops_pipeline/
 
 | Versión | Rama de origen | Contenido |
 |---|---|---|
-| V1.0.0 | developer → certification → master | Estructura de carpetas inicial |
+| V1.0.0 | developer → certification → master | Estructura de carpetas inicial (incluida dentro de V1.0.1; no existe un tag V1.0.0 separado) |
 | V1.0.1 | developer → certification → master | Cargar_datos.ipynb + comprension_eda.ipynb |
-| V1.1.0 | developer → certification → master | ft_engineering.py + primeros modelos |
-| V1.1.1 | developer → certification → master | model_training_evaluation.py (selección del mejor modelo) |
+| V1.1.0 | developer → certification → master | ft_engineering.py + primera versión de model_training_evaluation.py |
+| V1.1.1 | developer → certification → master | Ajustes del modelamiento: evaluación por clase y selección del mejor modelo (en preparación) |
+
+> **Nota sobre el versionado:** la estructura inicial (V1.0.0) y los notebooks de EDA (V1.0.1) se subieron en un mismo commit, por eso no existe un tag V1.0.0 aparte. En el tag V1.0.1 la carpeta `src/` todavía estaba en la raíz; la estructura final `mlops_pipeline/src/` quedó establecida a partir de V1.1.0.
 
 Flujo por avance: trabajar en `developer` → Pull Request a `certification` → validar → Pull Request a `master`.
 
