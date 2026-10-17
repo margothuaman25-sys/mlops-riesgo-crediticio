@@ -2,7 +2,7 @@
 
 Proyecto Integrador PIM5 (Data Science, Henry) · Autor: Margot Huaman Quispe
 
-Modelo de aprendizaje automático que, a partir del historial de créditos de una empresa financiera, estima si un cliente **pagará a tiempo** su crédito. El proyecto cubre el ciclo completo: exploración de datos, ingeniería de características, entrenamiento y evaluación, y monitoreo de *data drift* con un tablero en Streamlit. El despliegue como API y la imagen Docker corresponden al siguiente avance.
+Modelo de aprendizaje automático que, a partir del historial de créditos de una empresa financiera, estima si un cliente **pagará a tiempo** su crédito. El proyecto cubre el ciclo completo: exploración de datos, ingeniería de características, entrenamiento y evaluación, y monitoreo de *data drift* con un tablero en Streamlit. El despliegue incluye una API con FastAPI y una imagen Docker.
 
 ---
 
@@ -44,7 +44,7 @@ requirements.txt
 readme.md
 ```
 
-Además se versiona `modelo_riesgo_crediticio.pkl` en la raíz: es el modelo entrenado que consumirá `model_deploy.py` en el Avance #4. Los CSV generados localmente (`Base_de_datos_eda.csv`, `Base_de_datos_tipada.csv`) están en `.gitignore`.
+Además se versiona `modelo_riesgo_crediticio.pkl` en la raíz: es el modelo entrenado que usa `model_deploy.py`. También se versiona el `Dockerfile` de la API (Avance #4). Los CSV generados localmente (`Base_de_datos_eda.csv`, `Base_de_datos_tipada.csv`) están en `.gitignore`.
 
 ## 4. Proceso
 
@@ -74,6 +74,32 @@ El código se divide en dos partes para **evitar fuga de datos**:
   - **XGBoost**: `scale_pos_weight` = negativos / positivos (≈ 0,05; la etiqueta 1 es la mayoritaria, por lo que el valor reduce su peso para equilibrar).
 - **Selección del modelo:** validación cruzada estratificada de 5 folds sobre el entrenamiento, con el **F1 de la clase 0** como criterio.
 - El artefacto guardado (`modelo_riesgo_crediticio.pkl`) contiene el pipeline completo (preprocesamiento + modelo), el listado de columnas de entrada y las métricas.
+
+### 4.4 Despliegue como API (Avance #4) — `model_deploy.py` y `Dockerfile`
+
+API con **FastAPI** que carga el pipeline guardado (`modelo_riesgo_crediticio.pkl`), aplica `limpiar_base` al cliente nuevo y devuelve la probabilidad de que **no pague a tiempo**.
+
+| Endpoint | Función |
+|---|---|
+| `GET /` | Datos básicos del servicio |
+| `GET /health` | Estado del servicio y si el modelo está cargado |
+| `GET /info` | Modelo cargado, columnas de entrada y métricas de prueba |
+| `POST /predict` | Predicción para un cliente |
+| `POST /predict_batch` | Predicción para una lista de clientes (máximo 1.000) |
+
+La respuesta de `/predict` incluye `prediccion` (1 = paga, 0 = no paga), `decision`, `probabilidad_no_pago`, `probabilidad_pago`, `umbral_riesgo` (0,5) y `campos_no_informados`.
+
+Decisiones de diseño:
+- Los campos que no se informan se tratan como datos faltantes y el pipeline los imputa igual que en el entrenamiento. La respuesta los lista, porque la calidad de la predicción baja si faltan muchos (en especial `puntaje`).
+- Un nombre de campo mal escrito o un valor de tipo incorrecto devuelve un error 422 en lugar de ignorarse.
+- `tipo_credito` se normaliza (`4`, `4.0` y `"4"` son la misma categoría) usando las categorías que aprendió el entrenamiento.
+- Si el modelo no se puede cargar, el servicio arranca igual: `/health` informa el problema y `/predict` responde 503.
+
+**Imagen Docker (`Dockerfile`, en la raíz):** parte de `python:3.14-slim`, instala las dependencias de `requirements.txt` sin las que la API no necesita (notebooks, Streamlit y gráficos), copia solo `ft_engineering.py`, `model_deploy.py` y el modelo respetando la estructura de carpetas del repositorio, se ejecuta con un usuario sin privilegios e incluye un `HEALTHCHECK` sobre `/health`.
+
+Pruebas realizadas:
+- **API local con `uvicorn`:** `/health` responde `estado: ok` y `/predict` con un cliente de ejemplo (puntaje 95,23) devolvió "Paga a tiempo" con una probabilidad de no pago de 0,026.
+- **Imagen Docker:** se construyó sin errores y el contenedor arrancó y respondió en `/` (versión 1.3.0) y en `/docs`. La prueba se hizo en GitHub Codespaces, porque el equipo local no tiene habilitada la virtualización que requiere Docker Desktop.
 
 ## 5. Resultados
 
@@ -174,6 +200,21 @@ streamlit run model_monitoring.py     # tablero de monitoreo
 python ft_engineering.py              # opcional: genera Base_de_datos_tipada.csv solo para inspección
 ```
 
+API (desde `mlops_pipeline/src`):
+
+```bash
+uvicorn model_deploy:app --reload     # documentación interactiva en http://127.0.0.1:8000/docs
+```
+
+Docker (desde la raíz del repositorio):
+
+```bash
+docker build -t riesgo-crediticio-api .
+docker run -d -p 8000:8000 --name api riesgo-crediticio-api
+curl http://localhost:8000/health     # en Windows PowerShell: curl.exe http://localhost:8000/health
+docker stop api && docker rm api      # detener y eliminar el contenedor
+```
+
 Para abrir los notebooks, selecciona el entorno virtual como kernel (`ipykernel` está en `requirements.txt`).
 
 > El entrenamiento no usa `Base_de_datos_tipada.csv`: parte de la base cruda y aplica el pipeline completo, para que el preprocesamiento se ajuste solo con el entrenamiento.
@@ -193,6 +234,7 @@ Flujo por avance: trabajar en `developer` → Pull Request a `certification` →
 | V1.1.0 | developer → certification → master | `ft_engineering.py` + primera versión de `model_training_evaluation.py` |
 | V1.1.1 | developer → certification → master | Pipeline sin fuga de datos, métricas por clase 0, validación cruzada y `requirements.txt` con versiones fijas |
 | V1.2.0 | developer → certification → master | `model_monitoring.py` (data drift y tablero Streamlit) y README completo |
+| V1.3.0 | developer → certification → master | `model_deploy.py` (API con FastAPI), `Dockerfile` y README actualizado |
 
 > **Nota sobre el versionado:** la estructura inicial (V1.0.0) y los notebooks de EDA (V1.0.1) se subieron en un mismo commit, por eso no existe un tag V1.0.0 aparte. En el tag V1.0.1 la carpeta `src/` todavía estaba en la raíz; la estructura final `mlops_pipeline/src/` quedó establecida a partir de V1.1.0.
 
@@ -204,9 +246,13 @@ Flujo por avance: trabajar en `developer` → Pull Request a `certification` →
 - **Variable `puntaje`:** el modelo depende casi por completo de ella (ver sección 5.1). La base es sintética, según informó el equipo docente, y esa dependencia probablemente es un artefacto de cómo se generó. En un entorno real habría que validar con el dueño de los datos cuándo se calcula `puntaje`, y las métricas del modelo deberían interpretarse con esa salvedad.
 - **Monitoreo:** no hay datos de producción reales, así que la ventana "actual" se simula con la parte más reciente de la base. Como el modelo se entrenó con una partición aleatoria de toda la base, el monitoreo compara distribuciones de datos y de predicciones, no el desempeño real.
 - **PSI:** resume toda la distribución y puede no resaltar cambios en las colas, como el porcentaje de clientes en riesgo.
+- **API:** es una versión de demostración, sin autenticación ni límite de uso, y no registra las predicciones. Para producción harían falta seguridad, registro de solicitudes y monitoreo del servicio.
+- **Docker:** la imagen se construyó y se probó en GitHub Codespaces, no con Docker Desktop en el equipo local, que no tiene habilitada la virtualización.
 - **Cargar el `.pkl`:** requiere tener `mlops_pipeline/src` en el `PYTHONPATH`, porque el pipeline usa una clase definida en `ft_engineering.py`.
 
-## 10. Próximos pasos (Avance #4)
+## 10. Próximos pasos
 
-- `model_deploy.py`: API con FastAPI que reciba los datos de un cliente nuevo, aplique `limpiar_base` y devuelva la probabilidad de no pago.
-- Imagen Docker con las librerías y el código de la API.
+- Automatizar pruebas y validación con CI/CD (por ejemplo, GitHub Actions o SonarCloud): pruebas unitarias de `limpiar_base` y de la API.
+- Reentrenar el modelo de forma programada cuando el monitoreo detecte drift.
+- Confirmar con el dueño de los datos cuándo se calcula `puntaje` y reevaluar el modelo con esa información.
+- Ajustar el umbral de decisión según el costo de cada tipo de error.
