@@ -4,7 +4,7 @@ model_monitoring.py
 Monitoreo y deteccion de DATA DRIFT para el modelo de riesgo crediticio.
  
 Proyecto Integrador PIM5 - Despliegue de modelo de riesgo crediticio
-Autor: Shekina
+Autora: Margot Huaman Quispe
  
 Que es el data drift: cuando los datos que llegan en produccion dejan de
 parecerse a los datos con los que se entreno el modelo (cambia el perfil de

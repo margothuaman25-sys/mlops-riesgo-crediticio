@@ -5,7 +5,7 @@ Entrenamiento y evaluacion de modelos supervisados para predecir
 Pago_atiempo (1 = paga a tiempo, 0 = no paga a tiempo).
  
 Proyecto Integrador PIM5 - Despliegue de modelo de riesgo crediticio
-Autor: Shekina
+Autora: Margot Huaman Quispe
  
 Modelos comparados:
     1. Regresion Logistica (linea base, simple e interpretable)
