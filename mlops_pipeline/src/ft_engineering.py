@@ -4,7 +4,7 @@ ft_engineering.py
 Ingenieria de caracteristicas para el modelo de riesgo crediticio.
  
 Proyecto Integrador PIM5 - Despliegue de modelo de riesgo crediticio
-Autor: Shekina
+Autora: Margot Huaman Quispe
  
 Tech stack usado: pandas, numpy, scikit-learn, feature-engine.
  
@@ -222,5 +222,5 @@ def ejecutar_feature_engineering(ruta_entrada: str, ruta_salida: str) -> pd.Data
 if __name__ == "__main__":
     ejecutar_feature_engineering(
         ruta_entrada="../../Base_de_datos.csv",
-        ruta_salida="../../Base_de_datos_tipada.csv",
+        ruta_salida="../../Base_de_datos_transformada.csv",
     )
