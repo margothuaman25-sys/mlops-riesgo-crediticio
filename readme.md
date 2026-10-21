@@ -44,12 +44,35 @@ requirements.txt
 readme.md
 ```
 
-Además se versiona `modelo_riesgo_crediticio.pkl` en la raíz: es el modelo entrenado que usa `model_deploy.py`. También se versiona el `Dockerfile` de la API (Avance #4). Los CSV generados localmente (`Base_de_datos_eda.csv`, `Base_de_datos_tipada.csv`) están en `.gitignore`.
+Además se versiona `modelo_riesgo_crediticio.pkl` en la raíz: es el modelo entrenado que usa `model_deploy.py`. También se versiona el `Dockerfile` de la API (Avance #4). Los CSV generados localmente (`Base_de_datos_eda.csv`, `Base_de_datos_tipada.csv`, `Base_de_datos_transformada.csv`) están en `.gitignore`.
+
+### 3.1 Estructura adicional (documentada y aprobada por el profesor)
+
+Además de la estructura que pide Henry, la versión **V1.4.0** agrega los siguientes elementos para el extra de **SonarCloud**. El profesor Felipe Varela confirmó por Slack (19/10/2026) que **la app de Streamlit puede vivir dentro de `model_monitoring.py`** y que **se pueden crear directorios nuevos para SonarCloud siempre que se documente su creación**.
+
+| Elemento nuevo | Para qué sirve |
+|---|---|
+| `tests/` | Pruebas unitarias con `pytest` (51 pruebas) sobre `ft_engineering.py`, `model_training_evaluation.py`, `model_monitoring.py` y la API `model_deploy.py`. Usan datos sintéticos, no dependen de la base real. |
+| `tests/.coveragerc` | Configuración del reporte de cobertura que lee SonarCloud. |
+| `.github/workflows/ci.yml` | Flujo de GitHub Actions: instala dependencias, entrena y evalúa, corre el monitoreo de drift, ejecuta las pruebas con cobertura y envía el análisis a SonarCloud. |
+| `sonar-project.properties` | Configuración del proyecto en SonarCloud. |
+
+> Los 6 archivos de `mlops_pipeline/src/` del árbol de Henry **no cambiaron de nombre ni de ubicación**.
 
 ## 4. Proceso
 
 ### 4.1 Exploración (Avance #1)
-`Cargar_datos.ipynb` y `comprension_eda.ipynb` contienen la carga, la validación inicial y el análisis univariable, bivariable y multivariable.
+`Cargar_datos.ipynb` y `comprension_eda.ipynb` contienen la carga, la validación inicial y el análisis univariable, bivariable y multivariable, con gráficos e interpretación en cada sección.
+
+#### Hallazgos del EDA
+
+1. **Desbalance de clases:** 95,25 % paga a tiempo y 4,75 % no paga. Por eso se evalúa con precision, recall, F1, PR-AUC y ROC-AUC de la **clase 0** (no paga), no con accuracy.
+2. **Calidad de datos:** `tendencia_ingresos` trae 58 valores numéricos corruptos y 27,2 % de nulos; `edad_cliente`, `puntaje` y `puntaje_datacredito` tienen valores fuera de rango (alrededor de 1-1,5 % cada una); `salario_cliente` llega a 22 mil millones. Todo se maneja en `ft_engineering.py` (reglas en `limpiar_base`; imputación y winsorización en el pipeline ajustado solo con train).
+3. **Hallazgo principal, `puntaje`:** correlación de **0,92** con el objetivo; los no pagadores tienen puntaje máximo de 62,7 y los pagadores mínimo de 63,8 (sin solape). El 87,4 % de los clientes tiene el valor por defecto 95,227787. Es la variable dominante del modelo (ver sección 5.1).
+4. **Variables secundarias:** el resto de variables numéricas tiene |r| ≤ 0,07 con el objetivo. Los no pagadores piden en mediana más capital (2,27 M vs 1,91 M), son más jóvenes (38 vs 42 años) y tienen menor `puntaje_datacredito` (768 vs 792).
+5. **Categóricas:** Independientes 5,5 % de no pago vs 4,3 % de Empleados; tendencia Decreciente 6,3 % vs Creciente 3,9 %; el dato ausente o corrupto (`Sin_dato`) tiene 5,6 %, por encima del promedio.
+6. **Colinealidad:** `capital_prestado` y `cuota_pactada` (0,76); `cant_creditosvigentes` y `saldo_total` (0,40).
+7. **Hipótesis descartada:** el ratio cuota/salario no discrimina entre pagadores y no pagadores y no se incluye en el modelo.
 
 ### 4.2 Ingeniería de características (Avance #2) — `ft_engineering.py`
 El código se divide en dos partes para **evitar fuga de datos**:
@@ -197,7 +220,7 @@ Ejecución, en orden, desde `mlops_pipeline/src`:
 python model_training_evaluation.py   # entrena, evalúa y guarda modelo_riesgo_crediticio.pkl
 python model_monitoring.py            # reporte de data drift
 streamlit run model_monitoring.py     # tablero de monitoreo
-python ft_engineering.py              # opcional: genera Base_de_datos_tipada.csv solo para inspección
+python ft_engineering.py              # opcional: genera Base_de_datos_transformada.csv solo para inspección
 ```
 
 API (desde `mlops_pipeline/src`):
@@ -217,7 +240,32 @@ docker stop api && docker rm api      # detener y eliminar el contenedor
 
 Para abrir los notebooks, selecciona el entorno virtual como kernel (`ipykernel` está en `requirements.txt`).
 
-> El entrenamiento no usa `Base_de_datos_tipada.csv`: parte de la base cruda y aplica el pipeline completo, para que el preprocesamiento se ajuste solo con el entrenamiento.
+> El entrenamiento no usa los CSV generados: parte de `Base_de_datos.csv` (base cruda) y aplica el pipeline completo, para que el preprocesamiento se ajuste solo con el entrenamiento.
+
+### 7.1 Archivos generados
+
+Los notebooks se ejecutan desde `mlops_pipeline/src` y sus rutas apuntan a la raíz del repositorio (`../../`).
+
+| Paso | Archivo | Genera |
+|---|---|---|
+| 1 | `Cargar_datos.ipynb` | `Base_de_datos_tipada.csv` (base cruda con tipos corregidos; solo para el EDA) |
+| 2 | `comprension_eda.ipynb` | `Base_de_datos_eda.csv` (columnas de apoyo del EDA; no se usa para entrenar) |
+| 3 | `python ft_engineering.py` (opcional) | `Base_de_datos_transformada.csv` (solo para inspección) |
+| 4 | `python model_training_evaluation.py` | `modelo_riesgo_crediticio.pkl` |
+
+### 7.2 Pruebas unitarias y calidad de código (SonarCloud)
+
+```bash
+pip install pytest pytest-cov httpx
+python -m pytest --cov-config=tests/.coveragerc --cov --cov-report=term   # desde la raíz del repositorio
+```
+
+- **51 pruebas** con cobertura aproximada del **80 %** sobre `mlops_pipeline/src` (la interfaz de Streamlit no se prueba automáticamente).
+- El flujo `.github/workflows/ci.yml` corre en cada push y pull request: entrena y evalúa, ejecuta el monitoreo, corre las pruebas y envía el análisis a SonarCloud (calidad, seguridad, cobertura y estilo).
+- Resultado del análisis: https://sonarcloud.io/project/overview?id=margothuaman25-sys_mlops-riesgo-crediticio
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=margothuaman25-sys_mlops-riesgo-crediticio&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=margothuaman25-sys_mlops-riesgo-crediticio)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=margothuaman25-sys_mlops-riesgo-crediticio&metric=coverage)](https://sonarcloud.io/summary/new_code?id=margothuaman25-sys_mlops-riesgo-crediticio)
 
 ## 8. Estrategia de ramas y versiones
 
@@ -235,6 +283,7 @@ Flujo por avance: trabajar en `developer` → Pull Request a `certification` →
 | V1.1.1 | developer → certification → master | Pipeline sin fuga de datos, métricas por clase 0, validación cruzada y `requirements.txt` con versiones fijas |
 | V1.2.0 | developer → certification → master | `model_monitoring.py` (data drift y tablero Streamlit) y README completo |
 | V1.3.0 | developer → certification → master | `model_deploy.py` (API con FastAPI), `Dockerfile` y README actualizado |
+| V1.4.0 | developer → certification → master | EDA corregido y documentado, rutas unificadas, autoría unificada, pruebas unitarias, GitHub Actions y SonarCloud (estructura adicional en la sección 3.1) |
 
 > **Nota sobre el versionado:** la estructura inicial (V1.0.0) y los notebooks de EDA (V1.0.1) se subieron en un mismo commit, por eso no existe un tag V1.0.0 aparte. En el tag V1.0.1 la carpeta `src/` todavía estaba en la raíz; la estructura final `mlops_pipeline/src/` quedó establecida a partir de V1.1.0.
 
@@ -252,7 +301,7 @@ Flujo por avance: trabajar en `developer` → Pull Request a `certification` →
 
 ## 10. Próximos pasos
 
-- Automatizar pruebas y validación con CI/CD (por ejemplo, GitHub Actions o SonarCloud): pruebas unitarias de `limpiar_base` y de la API.
+- Ampliar las pruebas automáticas a la interfaz de Streamlit y agregar una prueba de la imagen Docker en el flujo de CI.
 - Reentrenar el modelo de forma programada cuando el monitoreo detecte drift.
 - Confirmar con el dueño de los datos cuándo se calcula `puntaje` y reevaluar el modelo con esa información.
 - Ajustar el umbral de decisión según el costo de cada tipo de error.
