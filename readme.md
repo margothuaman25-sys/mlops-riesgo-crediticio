@@ -284,6 +284,7 @@ Flujo por avance: trabajar en `developer` → Pull Request a `certification` →
 | V1.2.0 | developer → certification → master | `model_monitoring.py` (data drift y tablero Streamlit) y README completo |
 | V1.3.0 | developer → certification → master | `model_deploy.py` (API con FastAPI), `Dockerfile` y README actualizado |
 | V1.4.0 | developer → certification → master | EDA corregido y documentado, rutas unificadas, autoría unificada, pruebas unitarias, GitHub Actions y SonarCloud (estructura adicional en la sección 3.1) |
+| V1.4.1 | developer → certification → master | Notebooks ejecutados con sus salidas (gráficos y tablas del EDA visibles en GitHub) |
 
 > **Nota sobre el versionado:** la estructura inicial (V1.0.0) y los notebooks de EDA (V1.0.1) se subieron en un mismo commit, por eso no existe un tag V1.0.0 aparte. En el tag V1.0.1 la carpeta `src/` todavía estaba en la raíz; la estructura final `mlops_pipeline/src/` quedó establecida a partir de V1.1.0.
 
